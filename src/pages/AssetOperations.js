@@ -78,12 +78,16 @@ const ASSET_COLUMNS = [
   },
 ];
 
-export function AssetOperations({ page }) {
-  const [selectedAsset, setSelectedAsset] = React.useState(MOCK_ASSETS[0]);
+export function AssetOperations({ page, objectId, activeTab, onTabChange }) {
+  const [selectedAsset, setSelectedAsset] = React.useState(() => MOCK_ASSETS.find((item) => item.id === objectId) || MOCK_ASSETS[0]);
+  React.useEffect(() => {
+    if (objectId) setSelectedAsset(MOCK_ASSETS.find((item) => item.id === objectId) || MOCK_ASSETS[0]);
+  }, [objectId]);
 
   const handleRowClick = (row) => {
     setSelectedAsset(row);
-    window.dispatchEvent(new CustomEvent('navigate', { detail: 'asset-view' }));
+    window.history.pushState({}, '', `/workspace/assets/asset/${encodeURIComponent(row.id)}/overview`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
   if (page === 'explorer') {
@@ -98,6 +102,8 @@ export function AssetOperations({ page }) {
   if (page === 'asset-view') {
     return h(Object360Page, {
       objectData: buildAsset360Data(selectedAsset),
+      activeTab,
+      onTabChange,
     });
   }
 

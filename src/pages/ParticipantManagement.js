@@ -69,12 +69,16 @@ const PARTICIPANT_COLUMNS = [
   { key: 'onboardedDate', label: 'Onboarded', sortable: true },
 ];
 
-export function ParticipantManagement({ page }) {
-  const [selectedParticipant, setSelectedParticipant] = React.useState(MOCK_PARTICIPANTS[0]);
+export function ParticipantManagement({ page, objectId, activeTab, onTabChange }) {
+  const [selectedParticipant, setSelectedParticipant] = React.useState(() => MOCK_PARTICIPANTS.find((item) => item.id === objectId) || MOCK_PARTICIPANTS[0]);
+  React.useEffect(() => {
+    if (objectId) setSelectedParticipant(MOCK_PARTICIPANTS.find((item) => item.id === objectId) || MOCK_PARTICIPANTS[0]);
+  }, [objectId]);
 
   const handleRowClick = (row) => {
     setSelectedParticipant(row);
-    window.dispatchEvent(new CustomEvent('navigate', { detail: 'participant-view' }));
+    window.history.pushState({}, '', `/workspace/participants/participant/${encodeURIComponent(row.id)}/overview`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
   if (page === 'explorer') {
@@ -89,6 +93,8 @@ export function ParticipantManagement({ page }) {
   if (page === 'participant-view') {
     return h(Object360Page, {
       objectData: buildParticipant360Data(selectedParticipant),
+      activeTab,
+      onTabChange,
     });
   }
 

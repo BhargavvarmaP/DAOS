@@ -46,9 +46,10 @@ const OBJECT_DATA = {
   ],
 };
 
-export function Object360Page({ objectData }) {
+export function Object360Page({ objectData, activeTab: requestedTab = 'overview', onTabChange }) {
   const data = objectData || OBJECT_DATA;
-  const [activeTab, setActiveTab] = React.useState('overview');
+  const [activeTab, setActiveTab] = React.useState(requestedTab);
+  React.useEffect(() => setActiveTab(requestedTab), [requestedTab]);
 
   const tabs = ['Overview', 'Timeline', 'Relationships', 'Documents', 'Audit', 'Compliance', 'Risk'];
   const tabSlugs = tabs.map(tab => tab.toLowerCase());
@@ -66,6 +67,7 @@ export function Object360Page({ objectData }) {
       event.preventDefault();
       const nextTab = tabSlugs[nextIndex];
       setActiveTab(nextTab);
+      onTabChange?.(nextTab);
       document.getElementById(`${object360Id}-tab-${nextTab}`)?.focus();
     }
   };
@@ -117,7 +119,7 @@ export function Object360Page({ objectData }) {
             key: slug,
             id: tabId,
             className: `px-4 py-2 text-sm font-medium border-b-2 transition-colors focus-ring ${activeTab === slug ? 'border-daos-500 text-daos-300' : 'border-transparent text-slate-400 hover:text-slate-200'}`,
-            onClick: () => setActiveTab(slug),
+            onClick: () => { setActiveTab(slug); onTabChange?.(slug); },
             onKeyDown: (event) => handleTabKeyDown(event, slug),
             role: 'tab',
             type: 'button',

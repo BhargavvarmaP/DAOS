@@ -2,6 +2,7 @@
 
 import { h, React } from './lib/dom.js';
 import { WORKSPACES } from './data/workspaces.js';
+import { DEFAULT_PAGES, parseRoute, routePath } from './lib/routes.js';
 
 // -- Simple state management -----------------------------------------------
 function createStore(initial) {
@@ -17,7 +18,7 @@ function createStore(initial) {
 }
 
 // Default first page per workspace
-const DEFAULT_PAGES = {
+/*
   'executive': 'dashboard',
   'participants': 'explorer',
   'assets': 'explorer',
@@ -34,11 +35,18 @@ const DEFAULT_PAGES = {
   'data-intel': 'overview',
   'admin': 'overview',
 };
+*/
 
 // -- Global app state ----------------------------------------------------
+const initialRoute = parseRoute();
+const initialWorkspace = initialRoute.workspace || WORKSPACES[0];
 const appState = createStore({
-  activeWorkspace: WORKSPACES[0],
-  activePage: DEFAULT_PAGES[WORKSPACES[0].id] || 'overview',
+  activeWorkspace: initialWorkspace,
+  activePage: initialRoute.pageId || DEFAULT_PAGES[initialWorkspace.id] || 'overview',
+  objectType: initialRoute.objectType || null,
+  objectId: initialRoute.objectId || null,
+  activeTab: initialRoute.tab || 'overview',
+  routeNotFound: initialRoute.kind === 'not-found',
   showShowcase: false,
   sidebarCollapsed: false,
   globalSearchOpen: false,
@@ -71,7 +79,14 @@ import { OperationalWorkspace } from './pages/OperationalWorkspace.js';
 
 // -- Content Router -------------------------------------------------------
 function renderContent(state, update) {
-  const { activeWorkspace, activePage, showShowcase } = state;
+  const { activeWorkspace, activePage, showShowcase, routeNotFound, objectType, objectId, activeTab } = state;
+
+  if (routeNotFound) return h(NotFound, { state, update });
+  if (objectType && objectId) {
+    return activeWorkspace.id === 'participants'
+      ? h(ParticipantManagement, { page: 'participant-view', objectId, activeTab, update, onTabChange: (tab) => update({ activeTab: tab }) })
+      : h(AssetOperations, { page: 'asset-view', objectId, activeTab, update, onTabChange: (tab) => update({ activeTab: tab }) });
+  }
 
   if (showShowcase) {
     return h(ComponentShowcase, { state, update });
@@ -103,6 +118,17 @@ function renderContent(state, update) {
   }
 }
 
+function NotFound({ state, update }) {
+  return h('div', { className: 'flex items-center justify-center h-full p-8' },
+    h('div', { className: 'max-w-lg text-center' },
+      h('div', { className: 'text-5xl mb-4' }, '🧭'),
+      h('h2', { className: 'text-xl font-semibold text-slate-200 mb-2' }, 'Page not found'),
+      h('p', { className: 'text-sm text-slate-400 mb-5' }, 'This workspace or page does not exist. Choose a workspace to continue.'),
+      h('button', { className: 'px-4 py-2 bg-daos-600 hover:bg-daos-700 rounded text-sm font-medium focus-ring', onClick: () => update({ routeNotFound: false, activeWorkspace: WORKSPACES[0], activePage: DEFAULT_PAGES.executive }) }, 'Go to Command Center')
+    )
+  );
+}
+
 function ComingSoon({ name }) {
   return h('div', { className: 'flex items-center justify-center h-full' },
     h('div', { className: 'text-center p-8' },
@@ -121,26 +147,45 @@ export function App() {
     return appState.subscribe(setS);
   }, []);
 
-  // Listen for workspace switch events
+  // Keep legacy custom events working while making every navigation deep-linkable.
   React.useEffect(() => {
+    const applyRoute = (route) => {
+      if (route.kind === 'not-found') { appState.set((prev) => ({ ...prev, routeNotFound: true })); return; }
+      appState.set((prev) => ({ ...prev, routeNotFound: false, activeWorkspace: route.workspace, activePage: route.pageId, objectType: route.objectType || null, objectId: route.objectId || null, activeTab: route.tab || 'overview' }));
+    };
     const handleSwitchWorkspace = (e) => {
       const ws = e.detail;
-      const defaultPage = DEFAULT_PAGES[ws.id] || 'overview';
-      appState.set((prev) => ({ ...prev, activeWorkspace: ws, activePage: defaultPage }));
+      const path = routePath({ workspaceId: ws.id, pageId: DEFAULT_PAGES[ws.id] || 'overview' });
+      if (window.location.pathname !== path) window.history.pushState({}, '', path);
+      applyRoute(parseRoute(path));
     };
     const handleNavigate = (e) => {
       const pageId = e.detail;
-      appState.set((prev) => ({ ...prev, activePage: pageId }));
+      const current = appState.get();
+      const path = routePath({ workspaceId: current.activeWorkspace.id, pageId });
+      window.history.pushState({}, '', path);
+      applyRoute(parseRoute(path));
     };
+    const handlePopState = () => applyRoute(parseRoute());
     window.addEventListener('switch-workspace', handleSwitchWorkspace);
     window.addEventListener('navigate', handleNavigate);
-    return () => {
-      window.removeEventListener('switch-workspace', handleSwitchWorkspace);
-      window.removeEventListener('navigate', handleNavigate);
-    };
+    window.addEventListener('popstate', handlePopState);
+    return () => { window.removeEventListener('switch-workspace', handleSwitchWorkspace); window.removeEventListener('navigate', handleNavigate); window.removeEventListener('popstate', handlePopState); };
   }, []);
 
-  const update = (patch) => appState.set((prev) => ({ ...prev, ...patch }));
+  const update = (patch) => {
+    const next = typeof patch === 'function' ? patch(appState.get()) : patch;
+    const current = appState.get();
+    if (next.activeWorkspace && next.activeWorkspace.id !== current.activeWorkspace.id) {
+      const path = routePath({ workspaceId: next.activeWorkspace.id, pageId: DEFAULT_PAGES[next.activeWorkspace.id] });
+      window.history.pushState({}, '', path);
+      appState.set({ ...current, ...next, activePage: DEFAULT_PAGES[next.activeWorkspace.id], objectType: null, objectId: null, activeTab: 'overview', routeNotFound: false });
+    } else if (next.activeTab && next.activeTab !== current.activeTab && current.objectType && current.objectId) {
+      const path = routePath({ workspaceId: current.activeWorkspace.id, objectType: current.objectType, objectId: current.objectId, tab: next.activeTab });
+      window.history.pushState({}, '', path);
+      appState.set({ ...current, ...next });
+    } else appState.set((prev) => ({ ...prev, ...next }));
+  };
 
   // Route based on state: show ComponentShowcase when the workspace's id is our special sentinel
   // For now, we keep ComponentShowcase accessible — it no longer has its own workspace,
