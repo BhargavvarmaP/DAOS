@@ -48,8 +48,27 @@ const OBJECT_DATA = {
 
 export function Object360Page({ objectData }) {
   const data = objectData || OBJECT_DATA;
+  const [activeTab, setActiveTab] = React.useState('overview');
 
   const tabs = ['Overview', 'Timeline', 'Relationships', 'Documents', 'Audit', 'Compliance', 'Risk'];
+  const tabSlugs = tabs.map(tab => tab.toLowerCase());
+  const object360Id = 'object360';
+  const activePanelId = `${object360Id}-panel-${activeTab}`;
+
+  const handleTabKeyDown = (event, currentTab) => {
+    const currentIndex = tabSlugs.indexOf(currentTab);
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabSlugs.length;
+    if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabSlugs.length) % tabSlugs.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = tabSlugs.length - 1;
+    if (nextIndex !== currentIndex) {
+      event.preventDefault();
+      const nextTab = tabSlugs[nextIndex];
+      setActiveTab(nextTab);
+      document.getElementById(`${object360Id}-tab-${nextTab}`)?.focus();
+    }
+  };
 
   return h('div', { className: 'flex flex-col h-full' },
     // Header bar
@@ -89,22 +108,29 @@ export function Object360Page({ objectData }) {
         }, 'Actions ▾'),
       ),
       // Tabs
-      h('div', { className: 'flex border-t border-surface-border', role: 'tablist' },
+      h('div', { className: 'flex border-t border-surface-border', role: 'tablist', 'aria-label': 'Object details' },
         ...tabs.map(tab => {
           const slug = tab.toLowerCase();
+          const tabId = `${object360Id}-tab-${slug}`;
+          const panelId = `${object360Id}-panel-${slug}`;
           return h('button', {
             key: slug,
+            id: tabId,
             className: `px-4 py-2 text-sm font-medium border-b-2 transition-colors focus-ring ${activeTab === slug ? 'border-daos-500 text-daos-300' : 'border-transparent text-slate-400 hover:text-slate-200'}`,
             onClick: () => setActiveTab(slug),
+            onKeyDown: (event) => handleTabKeyDown(event, slug),
             role: 'tab',
-            'aria-selected': String(activeTab === slug),
+            type: 'button',
+            tabIndex: activeTab === slug ? 0 : -1,
+            'aria-selected': activeTab === slug,
+            'aria-controls': panelId,
           }, tab);
         })
       ),
     ),
 
     // Tab content
-    h('div', { className: 'flex-1 overflow-auto scrollbar-thin' },
+    h('div', { id: activePanelId, className: 'flex-1 overflow-auto scrollbar-thin', role: 'tabpanel', 'aria-labelledby': `${object360Id}-tab-${activeTab}`, tabIndex: 0 },
       activeTab === 'overview' && OverviewTab(data),
       activeTab === 'timeline' && TimelineTab(data),
       activeTab === 'relationships' && PlaceholderTab('Relationships', 'Interactive node-edge relationship graph with expandable connected objects.'),
