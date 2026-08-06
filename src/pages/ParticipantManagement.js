@@ -6,6 +6,34 @@ import { DataGrid } from '../components/DataGrid.js';
 import { Object360Page } from '../components/Object360Page.js';
 import { useQuery, QUERY_STATUS } from '../lib/dataClient.js';
 import { queryParticipants } from '../lib/mockAdapter.js';
+import { WorkflowWizard } from '../components/WorkflowWizard.js';
+
+const ONBOARDING_STEPS = [
+  { id: 'intake', label: 'Intake', description: 'Capture the participant mandate and legal identity.', fields: [
+    { key: 'legalName', label: 'Legal entity name', type: 'text', required: true, placeholder: 'e.g., Northstar Capital LLC' },
+    { key: 'entityType', label: 'Entity type', type: 'select', required: true, options: ['Corporation', 'LLC', 'Partnership', 'Trust', 'Individual'] },
+    { key: 'jurisdiction', label: 'Jurisdiction', type: 'select', required: true, options: ['US', 'UK', 'DE', 'CH', 'SG', 'LU', 'IE'] },
+  ] },
+  { id: 'identity', label: 'Identity / KYB', description: 'Validate registry identifiers and controlling parties.', fields: [
+    { key: 'lei', label: 'LEI', type: 'text', required: true, placeholder: '20-character LEI' },
+    { key: 'registrationNumber', label: 'Registration number', type: 'text', required: true, placeholder: 'Registry reference' },
+    { key: 'beneficialOwners', label: 'Beneficial owners identified', type: 'select', required: true, options: ['Yes', 'No — follow-up required'] },
+  ] },
+  { id: 'documents', label: 'Documents / Evidence', description: 'Collect evidence required for review.', fields: [
+    { key: 'incorporation', label: 'Certificate of incorporation', type: 'file', required: true },
+    { key: 'ownershipEvidence', label: 'Ownership evidence', type: 'file', required: true },
+    { key: 'taxForm', label: 'Tax form (W-8/W-9)', type: 'file', required: true },
+  ] },
+  { id: 'screening', label: 'Screening', description: 'Record sanctions, PEP and adverse media screening readiness.', fields: [
+    { key: 'screeningScope', label: 'Screening scope confirmed', type: 'select', required: true, options: ['Entity and owners', 'Entity only — exception'] },
+    { key: 'screeningProvider', label: 'Screening provider', type: 'select', required: true, options: ['Demo screening service', 'External provider'] },
+  ] },
+  { id: 'risk', label: 'Risk / Accreditation', description: 'Classify risk and confirm participant eligibility.', fields: [
+    { key: 'riskClass', label: 'Risk classification', type: 'select', required: true, options: ['Low', 'Medium', 'High', 'Prohibited'] },
+    { key: 'accreditation', label: 'Accreditation status', type: 'select', required: true, options: ['Verified', 'Pending evidence', 'Not applicable'] },
+  ] },
+  { id: 'decision', label: 'Review / Decision', description: 'Review the case and submit a demo decision.', fields: [] },
+];
 
 // Build Object360 data from a participant
 function buildParticipant360Data(participant) {
@@ -116,13 +144,12 @@ export function ParticipantManagement({ page, objectId, activeTab, onTabChange }
   }
 
   if (page === 'onboarding') {
-    return h('div', { className: 'flex items-center justify-center h-full' },
-      h('div', { className: 'text-center p-8' },
-        h('div', { className: 'text-4xl mb-4' }, '📝'),
-        h('h3', { className: 'text-lg font-medium text-slate-300 mb-2' }, 'Onboarding'),
-        h('p', { className: 'text-sm text-slate-500 max-w-md' }, 'Participant onboarding workflow — KYC/KYB data collection, document upload, risk scoring, and approval routing.'),
-      )
-    );
+    return h(WorkflowWizard, {
+      title: 'Participant onboarding case',
+      steps: ONBOARDING_STEPS,
+      demoLabel: 'Demo state — drafts and decisions are not persisted to a backend.',
+      onComplete: (data) => console.info('Demo onboarding submitted', data),
+    });
   }
 
   return h('div', { className: 'flex items-center justify-center h-full text-slate-500' }, 'Unknown page');

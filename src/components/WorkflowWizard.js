@@ -56,7 +56,8 @@ const STEPS = [
   }
 ];
 
-export function WorkflowWizard({ title, onComplete }) {
+export function WorkflowWizard({ title, onComplete, steps = STEPS, demoLabel = 'Demo workflow — changes are held in this session only.' }) {
+  const workflowSteps = steps;
   const [currentStep, setCurrentStep] = React.useState(0);
   const [formData, setFormData] = React.useState({});
   const [errors, setErrors] = React.useState({});
@@ -67,9 +68,9 @@ export function WorkflowWizard({ title, onComplete }) {
   const [filePreviews, setFilePreviews] = React.useState({});
 
   const wizardTitle = title || 'Onboarding Case Manager: Goldman Sachs & Co.';
-  const step = STEPS[currentStep];
+  const step = workflowSteps[currentStep];
   const isFirstStep = currentStep === 0;
-  const isLastStep = currentStep === STEPS.length - 1;
+  const isLastStep = currentStep === workflowSteps.length - 1;
 
   const updateField = (key, value) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -154,7 +155,7 @@ export function WorkflowWizard({ title, onComplete }) {
   };
 
   // Build context summary from prior steps
-  const priorStepsData = STEPS.slice(0, currentStep).filter(s => s.fields && s.fields.some(f => formData[f.key]));
+  const priorStepsData = workflowSteps.slice(0, currentStep).filter(s => s.fields && s.fields.some(f => formData[f.key]));
   const contextSummary = {};
   priorStepsData.forEach(s => {
     s.fields.forEach(f => {
@@ -186,7 +187,7 @@ export function WorkflowWizard({ title, onComplete }) {
     // Step Indicator Bar
     h('div', { className: 'px-4 py-3 border-b border-surface-border bg-surface-raised/50' },
       h('div', { className: 'flex items-center justify-between mb-2' },
-        h('h2', { className: 'text-sm font-semibold text-slate-200' }, wizardTitle),
+        h('div', {}, h('h2', { className: 'text-sm font-semibold text-slate-200' }, wizardTitle), h('p', { className: 'text-2xs text-slate-500 mt-0.5' }, demoLabel)),
         h('div', { className: 'flex items-center gap-2' },
           h('button', {
             className: 'px-3 py-1 text-xs text-slate-400 hover:text-slate-200 border border-surface-border rounded hover:bg-surface-overlay focus-ring',
@@ -195,8 +196,8 @@ export function WorkflowWizard({ title, onComplete }) {
         )
       ),
       // Step indicators
-      h('div', { className: 'flex items-center gap-1', role: 'progressbar', 'aria-valuenow': currentStep + 1, 'aria-valuemin': 1, 'aria-valuemax': STEPS.length, 'aria-label': `Step ${currentStep + 1} of ${STEPS.length}` },
-        ...STEPS.map((s, idx) => {
+      h('div', { className: 'flex items-center gap-1', role: 'progressbar', 'aria-valuenow': currentStep + 1, 'aria-valuemin': 1, 'aria-valuemax': workflowSteps.length, 'aria-label': `Step ${currentStep + 1} of ${workflowSteps.length}` },
+        ...workflowSteps.map((s, idx) => {
           const isComplete = idx < currentStep;
           const isCurrent = idx === currentStep;
           const isFuture = idx > currentStep;
@@ -299,7 +300,7 @@ export function WorkflowWizard({ title, onComplete }) {
           isLastStep && h('div', { className: 'bg-surface rounded-lg border border-surface-border p-4' },
             h('h4', { className: 'text-xs font-semibold text-slate-400 uppercase mb-3' }, 'Submission Summary'),
             h('div', { className: 'space-y-2' },
-              ...STEPS.filter(s => s.fields).flatMap(s =>
+              ...workflowSteps.filter(s => s.fields).flatMap(s =>
                 s.fields.filter(f => formData[f.key] || filePreviews[f.key]).map(f =>
                   h('div', { key: f.key, className: 'flex justify-between text-xs py-1 border-b border-surface-border last:border-0' },
                     h('span', { className: 'text-slate-500' }, f.label),
@@ -327,8 +328,8 @@ export function WorkflowWizard({ title, onComplete }) {
             ),
             h('div', { className: 'mt-4 pt-4 border-t border-surface-border' },
               h('div', { className: 'text-2xs text-slate-500 mb-1' }, 'Wizard Progress'),
-              h('div', { className: 'text-xs text-slate-300' }, `Step ${currentStep + 1} of ${STEPS.length} — "${step.label}"`),
-              h('div', { className: 'text-2xs text-slate-500 mt-1' }, `${currentStep} of ${STEPS.length - 1} steps completed`),
+              h('div', { className: 'text-xs text-slate-300' }, `Step ${currentStep + 1} of ${workflowSteps.length} — "${step.label}"`),
+              h('div', { className: 'text-2xs text-slate-500 mt-1' }, `${currentStep} of ${workflowSteps.length - 1} steps completed`),
             )
           )
       ),

@@ -6,6 +6,22 @@ import { DataGrid } from '../components/DataGrid.js';
 import { Object360Page } from '../components/Object360Page.js';
 import { MOCK_ASSETS } from '../data/mockAssets.js';
 
+const POSITION_DATA = [
+  { id: 'POS-1001', account: 'CUST-001 · Global Custody', owner: 'Northstar Capital', asset: 'US912810ST36', quantity: 125000, value: 12843750, costBasis: 12450000, pnl: 393750, status: 'Reconciled' },
+  { id: 'POS-1002', account: 'CUST-014 · Digital Assets', owner: 'Atlas Family Office', asset: 'DE000A0D9PT0', quantity: 8420, value: 1037740, costBasis: 1012000, pnl: 25740, status: 'Exception' },
+  { id: 'POS-1003', account: 'CUST-006 · Prime Brokerage', owner: 'Orion Pension Fund', asset: 'US0378331005', quantity: 18200, value: 4219660, costBasis: 3998000, pnl: 221660, status: 'Reconciled' },
+  { id: 'POS-1004', account: 'CUST-021 · Fund Admin', owner: 'PIMCO Europe Ltd', asset: 'LU1861134382', quantity: 51000, value: 2784600, costBasis: 2811000, pnl: -26400, status: 'Pending' },
+  { id: 'POS-1005', account: 'CUST-009 · Global Custody', owner: 'Helios Foundation', asset: 'CH0012032048', quantity: 9700, value: 2588080, costBasis: 2425000, pnl: 163080, status: 'Exception' },
+];
+const money = (n) => `${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+const POSITION_COLUMNS = [
+  { key: 'account', label: 'Account', sortable: true }, { key: 'owner', label: 'Owner', sortable: true },
+  { key: 'asset', label: 'Asset', sortable: true, mono: true }, { key: 'quantity', label: 'Quantity', sortable: true },
+  { key: 'value', label: 'Value', sortable: true, render: (v) => money(v) }, { key: 'costBasis', label: 'Cost basis', sortable: true, render: (v) => money(v) },
+  { key: 'pnl', label: 'P&L', sortable: true, render: (v) => h('span', { className: v >= 0 ? 'text-status-success' : 'text-status-danger' }, `${v >= 0 ? '+' : ''}${money(v)}`) },
+  { key: 'status', label: 'Status', sortable: true, filterable: true, render: (v) => h('span', { className: `px-2 py-0.5 rounded-full text-2xs border ${v === 'Reconciled' ? 'text-status-success border-status-success/30 bg-status-success/10' : v === 'Exception' ? 'text-status-danger border-status-danger/30 bg-status-danger/10' : 'text-status-warning border-status-warning/30 bg-status-warning/10'}` }, v) },
+];
+
 // Build Object360 data from an asset
 function buildAsset360Data(asset) {
   return {
@@ -78,6 +94,33 @@ const ASSET_COLUMNS = [
   },
 ];
 
+function PositionsScreen() {
+  const [rows, setRows] = React.useState(POSITION_DATA);
+  const [selectedException, setSelectedException] = React.useState(null);
+  const [notice, setNotice] = React.useState('');
+  const exceptions = rows.filter((row) => row.status === 'Exception');
+  const resolve = (id) => {
+    setRows((current) => current.map((row) => row.id === id ? { ...row, status: 'Reconciled' } : row));
+    setSelectedException(null);
+    setNotice('Exception marked resolved in demo state — no backend update was made.');
+  };
+  return h('div', { className: 'flex flex-col h-full overflow-auto' },
+    h('div', { className: 'px-5 py-4 border-b border-surface-border' },
+      h('div', { className: 'flex items-center justify-between' }, h('div', {}, h('h2', { className: 'text-lg font-semibold text-slate-100' }, 'Positions & Reconciliation'), h('p', { className: 'text-xs text-slate-500 mt-1' }, 'Demo operational view · as of 31 Jul 2026 · mock data')), h('span', { className: 'text-xs text-slate-500' }, `${rows.length} positions`)),
+      h('div', { className: 'grid grid-cols-4 gap-3 mt-4' },
+        ...[['Market value', money(rows.reduce((a, r) => a + r.value, 0))], ['Cost basis', money(rows.reduce((a, r) => a + r.costBasis, 0))], ['Unrealised P&L', money(rows.reduce((a, r) => a + r.pnl, 0))], ['Exceptions', String(exceptions.length)]].map(([label, value]) => h('div', { key: label, className: 'p-3 rounded border border-surface-border bg-surface-raised/40' }, h('div', { className: 'text-2xs uppercase text-slate-500' }, label), h('div', { className: 'text-base font-semibold text-slate-200 mt-1' }, value)))
+      )
+    ),
+    notice && h('div', { className: 'mx-5 mt-3 px-3 py-2 rounded border border-status-success/30 bg-status-success/10 text-xs text-status-success', role: 'status' }, notice),
+    h('div', { className: 'p-5' }, h(DataGrid, { data: rows, columns: POSITION_COLUMNS, idKey: 'id', onRowClick: (row) => row.status === 'Exception' ? setSelectedException(row) : undefined })),
+    h('div', { className: 'mx-5 mb-5 rounded border border-status-warning/30 bg-status-warning/5 p-4' },
+      h('div', { className: 'flex items-center justify-between mb-3' }, h('div', {}, h('h3', { className: 'text-sm font-semibold text-slate-200' }, 'Reconciliation exceptions'), h('p', { className: 'text-xs text-slate-500 mt-1' }, 'Select a break to inspect and resolve in demo state.')), h('span', { className: 'text-xs text-status-warning' }, `${exceptions.length} open`)),
+      exceptions.length === 0 ? h('p', { className: 'text-xs text-status-success' }, 'All positions reconciled.') : h('div', { className: 'space-y-2' }, ...exceptions.map((row) => h('div', { key: row.id, className: 'flex items-center justify-between p-2 rounded bg-surface border border-surface-border' }, h('div', {}, h('button', { className: 'text-left text-xs text-daos-300 hover:text-daos-200 focus-ring', onClick: () => setSelectedException(row) }, `${row.id} · ${row.owner}`), h('div', { className: 'text-2xs text-slate-500' }, `${row.account} · ${row.asset}`)), selectedException?.id === row.id && h('button', { className: 'px-3 py-1.5 rounded bg-daos-600 hover:bg-daos-700 text-xs text-white focus-ring', onClick: () => resolve(row.id) }, 'Resolve break')))),
+      selectedException && h('p', { className: 'text-2xs text-slate-500 mt-3' }, `Demo resolution: custody quantity variance review for ${selectedException.id}.`)
+    )
+  );
+}
+
 export function AssetOperations({ page, objectId, activeTab, onTabChange }) {
   const [selectedAsset, setSelectedAsset] = React.useState(() => MOCK_ASSETS.find((item) => item.id === objectId) || MOCK_ASSETS[0]);
   React.useEffect(() => {
@@ -108,13 +151,7 @@ export function AssetOperations({ page, objectId, activeTab, onTabChange }) {
   }
 
   if (page === 'positions') {
-    return h('div', { className: 'flex items-center justify-center h-full' },
-      h('div', { className: 'text-center p-8' },
-        h('div', { className: 'text-4xl mb-4' }, '📈'),
-        h('h3', { className: 'text-lg font-medium text-slate-300 mb-2' }, 'Positions'),
-        h('p', { className: 'text-sm text-slate-500 max-w-md' }, 'Position Explorer — view and manage all positions across custody accounts, with tax lot drill-down, P&L attribution, and reconciliation status.'),
-      )
-    );
+    return h(PositionsScreen);
   }
 
   return h('div', { className: 'flex items-center justify-center h-full text-slate-500' }, 'Unknown page');
