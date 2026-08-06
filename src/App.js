@@ -63,6 +63,7 @@ const appState = createStore({
   unreadCount: 2,
   activeTab: 'overview',
   demoPage: 'shell',
+  openTabs: [],
 });
 
 // Re-export store only
@@ -76,12 +77,16 @@ import { AssetOperations } from './pages/AssetOperations.js';
 import { CommandCenter } from './pages/CommandCenter.js';
 import { RiskCompliance } from './pages/RiskCompliance.js';
 import { OperationalWorkspace } from './pages/OperationalWorkspace.js';
+import { SearchResults } from './pages/SearchResults.js';
+import { NotificationCenter } from './pages/NotificationCenter.js';
 
 // -- Content Router -------------------------------------------------------
 function renderContent(state, update) {
   const { activeWorkspace, activePage, showShowcase, routeNotFound, objectType, objectId, activeTab } = state;
 
   if (routeNotFound) return h(NotFound, { state, update });
+  if (activePage === 'search') return h(SearchResults, { state, update });
+  if (activePage === 'notifications') return h(NotificationCenter, { state, update });
   if (objectType && objectId) {
     return activeWorkspace.id === 'participants'
       ? h(ParticipantManagement, { page: 'participant-view', objectId, activeTab, update, onTabChange: (tab) => update({ activeTab: tab }) })
@@ -151,7 +156,15 @@ export function App() {
   React.useEffect(() => {
     const applyRoute = (route) => {
       if (route.kind === 'not-found') { appState.set((prev) => ({ ...prev, routeNotFound: true })); return; }
-      appState.set((prev) => ({ ...prev, routeNotFound: false, activeWorkspace: route.workspace, activePage: route.pageId, objectType: route.objectType || null, objectId: route.objectId || null, activeTab: route.tab || 'overview' }));
+      appState.set((prev) => {
+        const next = { ...prev, routeNotFound: false, activeWorkspace: route.workspace || prev.activeWorkspace, activePage: route.pageId, objectType: route.objectType || null, objectId: route.objectId || null, activeTab: route.tab || 'overview' };
+        if (!['search', 'notifications'].includes(route.kind)) {
+          const path = window.location.pathname;
+          const label = route.objectId || (route.pageId || 'Overview');
+          next.openTabs = [...prev.openTabs.filter((tab) => tab.path !== path), { path, label: `${route.workspace?.name || prev.activeWorkspace.name} · ${label}` }].slice(-8);
+        }
+        return next;
+      });
     };
     const handleSwitchWorkspace = (e) => {
       const ws = e.detail;

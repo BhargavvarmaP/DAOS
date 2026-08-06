@@ -21,6 +21,8 @@ const workspaceById = new Map(WORKSPACES.map((workspace) => [workspace.id, works
 const OBJECT_PAGE = { participant: { workspace: 'participants', page: 'participant-view' }, asset: { workspace: 'assets', page: 'asset-view' } };
 
 export function parseRoute(pathname = window.location.pathname) {
+  if (pathname === '/search') return { kind: 'search', workspace: WORKSPACES[0], workspaceId: 'executive', pageId: 'search', tab: 'overview' };
+  if (pathname === '/notifications') return { kind: 'notifications', workspace: WORKSPACES[0], workspaceId: 'executive', pageId: 'notifications', tab: 'overview' };
   const parts = pathname.split('/').filter(Boolean).map(decodeURIComponent);
   const routeParts = parts[0] === 'workspace' ? parts.slice(1) : parts;
   const workspace = workspaceById.get(routeParts[0]);

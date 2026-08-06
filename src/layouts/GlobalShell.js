@@ -7,6 +7,7 @@ import { GlobalSearch } from '../components/GlobalSearch.js';
 import { NotificationBell } from '../components/NotificationBell.js';
 import { UserMenu } from '../components/UserMenu.js';
 import { LeftSidebar } from '../components/LeftSidebar.js';
+import { routePath } from '../lib/routes.js';
 
 const PAGE_LABELS = {
   'explorer': 'Explorer',
@@ -47,6 +48,10 @@ export function GlobalShell({ state, update, content }) {
   }, [sidebarCollapsed]);
 
   const pageLabel = PAGE_LABELS[activePage] || activePage || 'Overview';
+  const crumbs = state.objectType && state.objectId
+    ? [{ label: activeWorkspace.name, path: routePath({ workspaceId: activeWorkspace.id, pageId: PAGE_LABELS[activeWorkspace.id] ? activePage : 'overview' }) }, { label: pageLabel, path: routePath({ workspaceId: activeWorkspace.id, objectType: state.objectType, objectId: state.objectId }) }, { label: state.objectId }]
+    : [{ label: activeWorkspace.name, path: routePath({ workspaceId: activeWorkspace.id, pageId: activePage }) }, { label: pageLabel }];
+  const go = (path) => { window.history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')); };
 
   return h('div', { className: 'flex flex-col h-screen' },
     // ── Global Navigation Bar ──
@@ -82,11 +87,11 @@ export function GlobalShell({ state, update, content }) {
         role: 'main'
       },
         // Breadcrumb
-        h('div', { className: 'flex items-center gap-1 px-4 py-2 text-xs text-slate-400 border-b border-surface-border' },
-          h('span', { className: 'hover:text-slate-200 cursor-pointer' }, activeWorkspace.name),
-          h('span', { className: 'text-slate-600' }, '›'),
-          h('span', { className: 'text-slate-300' }, pageLabel),
+        h('div', { className: 'flex items-center gap-1 px-4 py-2 text-xs text-slate-400 border-b border-surface-border', 'aria-label': 'Breadcrumb' },
+          ...crumbs.flatMap((crumb, index) => [index > 0 ? h('span', { key: `sep-${index}`, className: 'text-slate-600', 'aria-hidden': 'true' }, '›') : null, crumb.path ? h('button', { key: `crumb-${index}`, className: 'hover:text-slate-200 focus-ring', onClick: () => go(crumb.path) }, crumb.label) : h('span', { key: `crumb-${index}`, className: 'text-slate-300' }, crumb.label)]),
         ),
+        state.openTabs?.length ? h('div', { className: 'flex items-center gap-1 px-3 pt-2 border-b border-surface-border overflow-x-auto', role: 'tablist', 'aria-label': 'Open contexts' }, state.openTabs.map((tab) => h('button', { key: tab.path, role: 'tab', 'aria-selected': String(tab.path === window.location.pathname), className: `px-3 py-1.5 text-xs rounded-t border border-b-0 whitespace-nowrap ${tab.path === window.location.pathname ? 'bg-surface-raised text-daos-300 border-daos-500' : 'text-slate-500 border-transparent hover:text-slate-300'}`, onClick: () => go(tab.path) }, tab.label))) : null,
+
         // Page content
         content || h('div', { className: 'flex items-center justify-center h-full text-slate-500' }, 'Select a page from the sidebar.')
       )

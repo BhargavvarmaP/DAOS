@@ -56,7 +56,7 @@ export function NotificationBell({ state, update }) {
       h('div', { className: 'border-t border-surface-border px-4 py-2' },
         h('button', {
           className: 'w-full text-center text-xs text-daos-400 hover:text-daos-300 py-1 focus-ring',
-          onClick: () => update({ notificationsOpen: false })
+          onClick: () => { update({ notificationsOpen: false }); window.history.pushState({}, '', '/notifications'); window.dispatchEvent(new PopStateEvent('popstate')); }
         }, 'View All Notifications →')
       )
     ),

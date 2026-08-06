@@ -2,6 +2,7 @@
 // / shortcut, searches by object ID, type filters
 
 import { h, React } from '../lib/dom.js';
+import { searchIndex } from '../lib/search.js';
 
 const MOCK_RESULTS = {
   asset: [
@@ -40,13 +41,11 @@ export function GlobalSearch({ state, update }) {
 
   const doSearch = (q) => {
     if (!q.trim()) { setResults(null); return; }
-    // Simple mock search
     const allResults = {};
-    for (const [group, items] of Object.entries(MOCK_RESULTS)) {
-      const matched = items.filter(i =>
-        i.id.toLowerCase().includes(q.toLowerCase()) ||
-        i.name.toLowerCase().includes(q.toLowerCase()));
-      if (matched.length) allResults[group] = matched.slice(0, 5);
+    for (const item of searchIndex(q).slice(0, 10)) {
+      const group = item.type;
+      if (!allResults[group]) allResults[group] = [];
+      allResults[group].push(item);
     }
     setResults(Object.keys(allResults).length ? allResults : null);
   };
@@ -95,7 +94,7 @@ export function GlobalSearch({ state, update }) {
           onKeyDown: (e) => {
             if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, allFlat.length - 1)); }
             if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, -1)); }
-            if (e.key === 'Enter' && selectedIdx >= 0) { update({ globalSearchOpen: false }); }
+            if (e.key === 'Enter' && selectedIdx >= 0) { const item = allFlat[selectedIdx]; if (item?.path) { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); } update({ globalSearchOpen: false }); }
             if (e.key === 'Escape') { update({ globalSearchOpen: false }); }
           },
           className: 'flex-1 bg-transparent text-slate-200 placeholder-slate-500 text-sm focus:outline-none',
@@ -114,7 +113,7 @@ export function GlobalSearch({ state, update }) {
               return h('button', {
                 key: item.id,
                 className: `w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-left hover:bg-surface-overlay transition-colors ${isSelected ? 'bg-surface-overlay ring-1 ring-daos-500' : ''}`,
-                onClick: () => update({ globalSearchOpen: false }),
+                onClick: () => { if (item.path) { window.history.pushState({}, '', item.path); window.dispatchEvent(new PopStateEvent('popstate')); } update({ globalSearchOpen: false }); },
               },
                 StatusBadge(item.status),
                 h('div', { className: 'flex-1 min-w-0' },
