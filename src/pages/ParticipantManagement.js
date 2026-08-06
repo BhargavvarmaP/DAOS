@@ -4,7 +4,8 @@
 import { h, React } from '../lib/dom.js';
 import { DataGrid } from '../components/DataGrid.js';
 import { Object360Page } from '../components/Object360Page.js';
-import { MOCK_PARTICIPANTS } from '../data/mockParticipants.js';
+import { useQuery, QUERY_STATUS } from '../lib/dataClient.js';
+import { queryParticipants } from '../lib/mockAdapter.js';
 
 // Build Object360 data from a participant
 function buildParticipant360Data(participant) {
@@ -70,10 +71,14 @@ const PARTICIPANT_COLUMNS = [
 ];
 
 export function ParticipantManagement({ page, objectId, activeTab, onTabChange }) {
-  const [selectedParticipant, setSelectedParticipant] = React.useState(() => MOCK_PARTICIPANTS.find((item) => item.id === objectId) || MOCK_PARTICIPANTS[0]);
+  const participantsQuery = useQuery(() => queryParticipants(), { immediate: true, deps: [page] });
+  const participants = participantsQuery.data || [];
+  const [selectedParticipant, setSelectedParticipant] = React.useState(null);
   React.useEffect(() => {
-    if (objectId) setSelectedParticipant(MOCK_PARTICIPANTS.find((item) => item.id === objectId) || MOCK_PARTICIPANTS[0]);
-  }, [objectId]);
+    if (objectId && participants.length) {
+      setSelectedParticipant(participants.find((item) => item.id === objectId) || null);
+    }
+  }, [objectId, participants]);
 
   const handleRowClick = (row) => {
     setSelectedParticipant(row);
@@ -82,8 +87,19 @@ export function ParticipantManagement({ page, objectId, activeTab, onTabChange }
   };
 
   if (page === 'explorer') {
+    if (participantsQuery.status === QUERY_STATUS.LOADING) {
+      return h('div', { className: 'flex items-center justify-center h-full text-slate-400', role: 'status' }, 'Loading participants…');
+    }
+    if (participantsQuery.status === QUERY_STATUS.ERROR) {
+      return h('div', { className: 'flex flex-col items-center justify-center h-full gap-3 text-center' },
+        h('p', { className: 'text-sm text-status-danger', role: 'alert' }, participantsQuery.error.toUserMessage()),
+        h('button', { type: 'button', className: 'px-3 py-1.5 rounded bg-daos-600 hover:bg-daos-700 text-sm focus-ring', onClick: participantsQuery.retry }, 'Retry'));
+    }
+    if (participantsQuery.status === QUERY_STATUS.EMPTY) {
+      return h('div', { className: 'flex items-center justify-center h-full text-slate-400' }, 'No participants found.');
+    }
     return h(DataGrid, {
-      data: MOCK_PARTICIPANTS,
+      data: participants,
       columns: PARTICIPANT_COLUMNS,
       idKey: 'id',
       onRowClick: handleRowClick,
@@ -91,6 +107,7 @@ export function ParticipantManagement({ page, objectId, activeTab, onTabChange }
   }
 
   if (page === 'participant-view') {
+    if (!selectedParticipant) return h('div', { className: 'p-8 text-slate-400' }, 'Participant not found.');
     return h(Object360Page, {
       objectData: buildParticipant360Data(selectedParticipant),
       activeTab,
